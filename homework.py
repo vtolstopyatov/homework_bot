@@ -57,13 +57,12 @@ def get_api_answer(current_timestamp):
     timestamp = current_timestamp or int(time.time())
     params = {'from_date': timestamp}
     response = requests.get(ENDPOINT, headers=HEADERS, params=params)
-    logger.debug(f'Сервер вернул ответ: {response.text}')
+    logger.debug(f'Сервер вернул ответ: {response}')
     if response.status_code == 200:
         return response.json()
     else:
-        text = f'Сбой в работе программы: эндпойнт {ENDPOINT} недоступен'
-        logger.error(text)
-        raise StatusCodeError(text)
+        logger.error(f'Сбой в работе программы: эндпойнт {ENDPOINT} недоступен')
+        raise StatusCodeError(f'Сбой в работе программы: эндпойнт {ENDPOINT} недоступен')
 
 
 def check_response(response):
@@ -71,6 +70,7 @@ def check_response(response):
     try:
         if isinstance(response, dict):
             homeworks = response['homeworks']
+            logger.debug(f'Ключ homeworks: {homeworks}')
             if not isinstance(homeworks, list):
                 raise AnswerError
             return homeworks
