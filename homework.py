@@ -41,7 +41,7 @@ HOMEWORK_STATUSES = {
 
 
 def send_message(bot, message):
-    """Отправка сообщения в Telegram"""
+    """Отправка сообщения в Telegram."""
     try:
         bot.send_message(
             chat_id=TELEGRAM_CHAT_ID,
@@ -53,7 +53,7 @@ def send_message(bot, message):
 
 
 def get_api_answer(current_timestamp):
-    """Запрос к API Практикума"""
+    """Запрос к API Практикума."""
     timestamp = current_timestamp or int(time.time())
     params = {'from_date': timestamp}
     response = requests.get(ENDPOINT, headers=HEADERS, params=params)
@@ -61,12 +61,16 @@ def get_api_answer(current_timestamp):
     if response.status_code == 200:
         return response.json()
     else:
-        logger.error(f'Сбой в работе программы: эндпойнт {ENDPOINT} недоступен')
-        raise StatusCodeError(f'Сбой в работе программы: эндпойнт {ENDPOINT} недоступен')
+        logger.error(
+            f'Сбой в работе программы: эндпойнт {ENDPOINT} недоступен'
+        )
+        raise StatusCodeError(
+            f'Сбой в работе программы: эндпойнт {ENDPOINT} недоступен'
+        )
 
 
 def check_response(response):
-    """Проверка ответа API"""
+    """Проверка ответа API."""
     try:
         if isinstance(response, dict):
             homeworks = response['homeworks']
@@ -100,7 +104,7 @@ def parse_status(homework):
 
 
 def check_tokens():
-    """Проверка наличия токенов"""
+    """Проверка наличия токенов."""
     if PRACTICUM_TOKEN and TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
         return True
     return False
