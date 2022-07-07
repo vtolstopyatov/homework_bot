@@ -64,7 +64,7 @@ def get_api_answer(current_timestamp):
     payload = {'url': ENDPOINT, 'headers': HEADERS, 'params': params}
     response = requests.get(**payload)
     logger.debug(f'Сервер вернул ответ: {response}')
-    if not response.status_code == HTTPStatus.OK:
+    if response.status_code == HTTPStatus.OK:
         return response.json()
     else:
         raise StatusCodeError(
