@@ -1,21 +1,22 @@
 import os
-from sys import stdout
+import sys
 import logging
 import requests
 import telegram
 import time
 from dotenv import load_dotenv
-from exceptions import (VariableDoesNotExist,
+from exceptions import (SendMessageError,
                         StatusCodeError,
                         ServerAnswerError,
                         AnswerError,
                         )
+from http import HTTPStatus
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-handler = logging.StreamHandler(stdout)
+handler = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
@@ -43,29 +44,33 @@ HOMEWORK_STATUSES = {
 def send_message(bot, message):
     """Отправка сообщения в Telegram."""
     try:
+        logger.debug(f'Отправка сообщения: {message}')
         bot.send_message(
             chat_id=TELEGRAM_CHAT_ID,
             text=message,
         )
         logger.info(f'Бот отправил сообщение: {message}')
-    except Exception:
-        logger.error('Cбой при отправке сообщения в Telegram')
+    except Exception as error:
+        raise SendMessageError(
+            f'Cбой при отправке сообщения в Telegram: {error}'
+        )
 
 
 def get_api_answer(current_timestamp):
     """Запрос к API Практикума."""
     timestamp = current_timestamp or int(time.time())
+    logger.debug(f'Запрос с timestamp: {timestamp}')
     params = {'from_date': timestamp}
-    response = requests.get(ENDPOINT, headers=HEADERS, params=params)
+    payload = {'url': ENDPOINT, 'headers': HEADERS, 'params': params}
+    response = requests.get(**payload)
     logger.debug(f'Сервер вернул ответ: {response}')
-    if response.status_code == 200:
+    if not response.status_code == HTTPStatus.OK:
         return response.json()
     else:
-        logger.error(
-            f'Сбой в работе программы: эндпойнт {ENDPOINT} недоступен'
-        )
         raise StatusCodeError(
-            f'Сбой в работе программы: эндпойнт {ENDPOINT} недоступен'
+            f'Сбой в работе программы: эндпойнт {ENDPOINT} недоступен.'
+            f'В запросе переданы аргументы: {payload}.'
+            f'Ответ сервера: {response.content}.'
         )
 
 
@@ -74,7 +79,7 @@ def check_response(response):
     try:
         if isinstance(response, dict):
             homeworks = response['homeworks']
-            logger.debug(f'Ключ homeworks: {homeworks}')
+            logger.debug(f'Ключ homeworks: {response}')
             if not isinstance(homeworks, list):
                 raise AnswerError
             return homeworks
@@ -105,35 +110,32 @@ def parse_status(homework):
 
 def check_tokens():
     """Проверка наличия токенов."""
-    if PRACTICUM_TOKEN and TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
-        return True
-    return False
+    return all([PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID])
 
 
 def main():
     """Основная логика работы бота."""
-    if check_tokens():
-        pass
-    else:
+    if not check_tokens():
         logger.critical('Отсутствуют обязательные переменные окружения')
-        raise VariableDoesNotExist('Нет обязательных переменных окружения')
+        sys.exit()
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
     while True:
         try:
             response = get_api_answer(current_timestamp)
             homeworks = check_response(response)
-            if len(homeworks) > 0:
+            if homeworks:
                 message = parse_status(homeworks[0])
                 if message is not None:
                     send_message(bot, message)
             else:
                 logger.debug('В ответе отсутствуют новые статусы')
-            current_timestamp = int(time.time())
-            time.sleep(RETRY_TIME)
+            current_timestamp = response['current_date']
         except Exception as error:
+            logger.error(f'Сбой при работе программы: {error}')
             message = f'Сбой в работе программы: {error}'
             send_message(bot, message)
+        finally:
             time.sleep(RETRY_TIME)
 
 

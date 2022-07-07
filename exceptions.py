@@ -1,4 +1,4 @@
-class VariableDoesNotExist(Exception):
+class SendMessageError(Exception):
     pass
 
 
